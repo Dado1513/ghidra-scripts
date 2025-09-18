@@ -9,8 +9,11 @@ from ghidra.program.model.address import AddressSet
 from ghidra.app.script import GhidraScript
 from ghidra.program.model.symbol import SymbolType
 from java.io import File, FileWriter
-from javax.swing import JOptionPane, JTextField, JPanel, JLabel, JCheckBox
-from java.awt import GridLayout
+from javax.swing import JOptionPane, JTextField, JPanel, JLabel, JCheckBox, JTextArea, JScrollPane, JButton, JFrame, JTabbedPane, BorderFactory, JFileChooser
+from java.awt import GridLayout, BorderLayout, FlowLayout, Toolkit, Font, Dimension
+from java.awt.datatransfer import StringSelection
+from java.awt.event import ActionListener
+from javax.swing.filechooser import FileNameExtensionFilter
 
 class PatternExtractor(GhidraScript):
     def __init__(self):
@@ -38,8 +41,7 @@ class PatternExtractor(GhidraScript):
                     patterns.append(pattern_data)
                     
             if patterns:
-                self.exportPatterns(patterns)
-                self.popup("Exported {} patterns to {}".format(len(patterns), self.export_path))
+                self.showResultsDialog(patterns)
             else:
                 self.popup("No patterns extracted.")
                 
@@ -65,11 +67,18 @@ class PatternExtractor(GhidraScript):
         panel.add(JLabel("Output format:"))
         panel.add(format_field)
         
-        # Export path
+        # Export path with browse button
+        path_panel = JPanel(BorderLayout())
         default_path = os.path.join(os.path.expanduser("~"), "frida_patterns.json")
         path_field = JTextField(default_path)
+        browse_btn = JButton("Browse...")
+        browse_btn.addActionListener(BrowseActionListener(path_field))
+        
+        path_panel.add(path_field, BorderLayout.CENTER)
+        path_panel.add(browse_btn, BorderLayout.EAST)
+        
         panel.add(JLabel("Export path:"))
-        panel.add(path_field)
+        panel.add(path_panel)
         
         result = JOptionPane.showConfirmDialog(
             None, panel, "Pattern Extractor Options", 
@@ -86,6 +95,205 @@ class PatternExtractor(GhidraScript):
             except ValueError:
                 self.popup("Invalid number of bytes specified.")
                 return False
+    
+    def showResultsDialog(self, patterns):
+        """Show results in an interactive dialog with copy functionality"""
+        frame = JFrame("Pattern Extractor Results")
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE)
+        frame.setSize(1000, 700)
+        frame.setLocationRelativeTo(None)
+        
+        # Create tabbed pane
+        tabbedPane = JTabbedPane()
+        
+        # Summary tab
+        summary_panel = self.createSummaryTab(patterns)
+        tabbedPane.addTab("Summary", summary_panel)
+        
+        # Individual pattern tabs
+        for i, pattern in enumerate(patterns):
+            pattern_panel = self.createPatternTab(pattern)
+            tab_name = pattern['name'][:15] + "..." if len(pattern['name']) > 15 else pattern['name']
+            tabbedPane.addTab(tab_name, pattern_panel)
+        
+        # Export controls
+        export_panel = self.createExportPanel(patterns)
+        
+        # Main layout
+        frame.setLayout(BorderLayout())
+        frame.add(tabbedPane, BorderLayout.CENTER)
+        frame.add(export_panel, BorderLayout.SOUTH)
+        
+        frame.setVisible(True)
+    
+    def createSummaryTab(self, patterns):
+        """Create summary tab with all patterns overview"""
+        panel = JPanel(BorderLayout())
+        
+        # Summary text
+        summary_text = []
+        summary_text.append("Pattern Extraction Summary")
+        summary_text.append("=" * 50)
+        summary_text.append("Program: {}".format(currentProgram.getName()))
+        summary_text.append("Total patterns: {}".format(len(patterns)))
+        summary_text.append("Architecture: {}".format(str(currentProgram.getLanguage().getProcessor())))
+        summary_text.append("")
+        
+        for pattern in patterns:
+            summary_text.append("Function: {}".format(pattern['name']))
+            summary_text.append("Address: {}".format(pattern['address']))
+            summary_text.append("Pattern: {}".format(pattern['pattern']))
+            summary_text.append("Size: {} bytes".format(pattern['size']))
+            summary_text.append("-" * 40)
+        
+        text_area = JTextArea("\n".join(summary_text))
+        text_area.setFont(Font("Monospaced", Font.PLAIN, 12))
+        text_area.setEditable(False)
+        
+        scroll_pane = JScrollPane(text_area)
+        panel.add(scroll_pane, BorderLayout.CENTER)
+        
+        # Copy button
+        copy_btn = JButton("Copy All Patterns")
+        copy_btn.addActionListener(CopyActionListener(text_area))
+        
+        btn_panel = JPanel(FlowLayout())
+        btn_panel.add(copy_btn)
+        panel.add(btn_panel, BorderLayout.SOUTH)
+        
+        # Quick export buttons (use default path from config)
+        quick_panel = JPanel(FlowLayout())
+        quick_panel.setBorder(BorderFactory.createTitledBorder("Quick Export (Default Path)"))
+        
+        quick_json_btn = JButton("Quick Export JSON")
+        quick_json_btn.addActionListener(ExportActionListener(self, patterns, "json"))
+        quick_panel.add(quick_json_btn)
+        
+        quick_frida_btn = JButton("Quick Export Frida")
+        quick_frida_btn.addActionListener(ExportActionListener(self, patterns, "frida"))
+        quick_panel.add(quick_frida_btn)
+        
+        # Add both panels to main panel
+        main_panel = JPanel(BorderLayout())
+        main_panel.add(panel, BorderLayout.CENTER)
+        main_panel.add(quick_panel, BorderLayout.SOUTH)
+        
+        return main_panel
+    
+    def createPatternTab(self, pattern):
+        """Create individual pattern tab"""
+        panel = JPanel(BorderLayout())
+        
+        # Pattern details
+        details = []
+        details.append("Function: {}".format(pattern['name']))
+        details.append("Address: {}".format(pattern['address']))
+        details.append("Description: {}".format(pattern['description']))
+        details.append("")
+        details.append("Raw Hex Pattern:")
+        details.append(pattern['pattern'])
+        details.append("")
+        details.append("Raw Pattern (no spaces):")
+        details.append(pattern['raw_pattern'])
+        details.append("")
+        
+        if 'smart_pattern' in pattern:
+            details.append("Smart Pattern (with wildcards):")
+            details.append(pattern['smart_pattern'])
+            details.append("")
+        
+        details.append("Frida Hook Code:")
+        details.append("hooker.addPattern('{}',".format(pattern['name'].replace(' ', '_')))
+        details.append("    '{}',".format(pattern.get('smart_pattern', pattern['pattern'])))
+        details.append("    {")
+        details.append("        description: '{}',".format(pattern['description']))
+        details.append("        onEnter: function(args, context) {")
+        details.append("            console.log('[{}] Hooked!');".format(pattern['name']))
+        details.append("            hooker.defaultOnEnter.call(this, args, context);")
+        details.append("        }")
+        details.append("    }")
+        details.append(");")
+        details.append("")
+        
+        # Symbol information
+        if 'symbol_info' in pattern:
+            details.append("Symbol Information:")
+            details.append("  Namespace: {}".format(pattern['symbol_info']['namespace']))
+            details.append("  External: {}".format(pattern['symbol_info']['is_external']))
+            if pattern['symbol_info']['aliases']:
+                details.append("  Aliases: {}".format(", ".join(pattern['symbol_info']['aliases'])))
+        
+        # XRef information
+        if 'xrefs' in pattern and pattern['xrefs']['references_to_count'] > 0:
+            details.append("")
+            details.append("Cross References ({} total):".format(pattern['xrefs']['references_to_count']))
+            for call_site in pattern['xrefs']['call_sites'][:5]:  # Show first 5
+                details.append("  {} <- {}".format(call_site['address'], call_site['caller']))
+        
+        text_area = JTextArea("\n".join(details))
+        text_area.setFont(Font("Monospaced", Font.PLAIN, 11))
+        text_area.setEditable(False)
+        text_area.setCaretPosition(0)  # Scroll to top
+        
+        scroll_pane = JScrollPane(text_area)
+        panel.add(scroll_pane, BorderLayout.CENTER)
+        
+        # Button panel
+        btn_panel = JPanel(FlowLayout())
+        
+        # Copy pattern button
+        copy_pattern_btn = JButton("Copy Pattern")
+        copy_pattern_btn.addActionListener(CopyTextActionListener(pattern['pattern']))
+        btn_panel.add(copy_pattern_btn)
+        
+        # Copy raw pattern button
+        copy_raw_btn = JButton("Copy Raw")
+        copy_raw_btn.addActionListener(CopyTextActionListener(pattern['raw_pattern']))
+        btn_panel.add(copy_raw_btn)
+        
+        # Copy Frida code button
+        frida_code = "hooker.addPattern('{}', '{}', {{ description: '{}' }});".format(
+            pattern['name'].replace(' ', '_'),
+            pattern.get('smart_pattern', pattern['pattern']),
+            pattern['description']
+        )
+        copy_frida_btn = JButton("Copy Frida Code")
+        copy_frida_btn.addActionListener(CopyTextActionListener(frida_code))
+        btn_panel.add(copy_frida_btn)
+        
+        # Copy all details button
+        copy_all_btn = JButton("Copy All Details")
+        copy_all_btn.addActionListener(CopyActionListener(text_area))
+        btn_panel.add(copy_all_btn)
+        
+        panel.add(btn_panel, BorderLayout.SOUTH)
+        
+        return panel
+    
+    def createExportPanel(self, patterns):
+        """Create export control panel"""
+        panel = JPanel(FlowLayout())
+        panel.setBorder(BorderFactory.createTitledBorder("Export Options"))
+        
+        # Export JSON button with file chooser
+        json_btn = JButton("Export JSON")
+        json_btn.addActionListener(ExportWithChooserActionListener(self, patterns, "json"))
+        panel.add(json_btn)
+        
+        # Export Frida script button with file chooser
+        frida_btn = JButton("Export Frida Script")
+        frida_btn.addActionListener(ExportWithChooserActionListener(self, patterns, "frida"))
+        panel.add(frida_btn)
+        
+        # Copy all patterns as text button
+        copy_all_btn = JButton("Copy All as Text")
+        all_patterns_text = "\n".join([
+            "{}:{}".format(p['name'], p['pattern']) for p in patterns
+        ])
+        copy_all_btn.addActionListener(CopyTextActionListener(all_patterns_text))
+        panel.add(copy_all_btn)
+        
+        return panel
         return False
         
     def getSelectedFunctions(self):
@@ -352,6 +560,154 @@ class PatternExtractor(GhidraScript):
             
         # Also write JSON data
         self.exportJSON(patterns)
+
+# Action Listeners for GUI
+class CopyActionListener(ActionListener):
+    def __init__(self, text_component):
+        self.text_component = text_component
+    
+    def actionPerformed(self, event):
+        text = self.text_component.getText()
+        clipboard = Toolkit.getDefaultToolkit().getSystemClipboard()
+        selection = StringSelection(text)
+        clipboard.setContents(selection, None)
+        print("Copied to clipboard: {} characters".format(len(text)))
+
+class CopyTextActionListener(ActionListener):
+    def __init__(self, text):
+        self.text = text
+    
+    def actionPerformed(self, event):
+        clipboard = Toolkit.getDefaultToolkit().getSystemClipboard()
+        selection = StringSelection(self.text)
+        clipboard.setContents(selection, None)
+        print("Copied to clipboard: {}".format(self.text[:50] + "..." if len(self.text) > 50 else self.text))
+
+class ExportActionListener(ActionListener):
+    def __init__(self, extractor, patterns, format_type):
+        self.extractor = extractor
+        self.patterns = patterns
+        self.format_type = format_type
+    
+    def actionPerformed(self, event):
+        try:
+            if self.format_type == "json":
+                self.extractor.exportJSON(self.patterns)
+                print("Exported JSON to: {}".format(self.extractor.export_path))
+            elif self.format_type == "frida":
+                self.extractor.exportFridaScript(self.patterns)
+                js_path = self.extractor.export_path.replace('.json', '.js')
+                print("Exported Frida script to: {}".format(js_path))
+        except Exception as e:
+            print("Export error: {}".format(str(e)))
+
+# Browse button action listener
+class BrowseActionListener(ActionListener):
+    def __init__(self, text_field):
+        self.text_field = text_field
+    
+    def actionPerformed(self, event):
+        file_chooser = JFileChooser()
+        file_chooser.setDialogTitle("Select Export Location")
+        file_chooser.setFileSelectionMode(JFileChooser.FILES_ONLY)
+        
+        # Set file filters
+        json_filter = FileNameExtensionFilter("JSON files (*.json)", ["json"])
+        js_filter = FileNameExtensionFilter("JavaScript files (*.js)", ["js"])
+        all_filter = FileNameExtensionFilter("All files", ["*"])
+        
+        file_chooser.addChoosableFileFilter(json_filter)
+        file_chooser.addChoosableFileFilter(js_filter)
+        file_chooser.addChoosableFileFilter(all_filter)
+        file_chooser.setFileFilter(json_filter)
+        
+        # Set initial directory
+        current_path = self.text_field.getText()
+        if current_path and os.path.dirname(current_path):
+            file_chooser.setCurrentDirectory(File(os.path.dirname(current_path)))
+            if os.path.basename(current_path):
+                file_chooser.setSelectedFile(File(current_path))
+        
+        result = file_chooser.showSaveDialog(None)
+        if result == JFileChooser.APPROVE_OPTION:
+            selected_file = file_chooser.getSelectedFile()
+            self.text_field.setText(selected_file.getAbsolutePath())
+
+# Export with file chooser action listener
+class ExportWithChooserActionListener(ActionListener):
+    def __init__(self, extractor, patterns, format_type):
+        self.extractor = extractor
+        self.patterns = patterns
+        self.format_type = format_type
+    
+    def actionPerformed(self, event):
+        # Show file chooser
+        file_chooser = JFileChooser()
+        file_chooser.setDialogTitle("Export Patterns - Choose Location")
+        file_chooser.setFileSelectionMode(JFileChooser.FILES_ONLY)
+        
+        # Set appropriate filter and default name
+        if self.format_type == "json":
+            file_filter = FileNameExtensionFilter("JSON files (*.json)", ["json"])
+            default_name = "{}_patterns.json".format(currentProgram.getName().replace(" ", "_"))
+        elif self.format_type == "frida":
+            file_filter = FileNameExtensionFilter("JavaScript files (*.js)", ["js"])
+            default_name = "{}_patterns.js".format(currentProgram.getName().replace(" ", "_"))
+        else:
+            file_filter = FileNameExtensionFilter("All files", ["*"])
+            default_name = "patterns.txt"
+        
+        file_chooser.setFileFilter(file_filter)
+        file_chooser.setSelectedFile(File(default_name))
+        
+        # Set initial directory to user's home or desktop
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        if os.path.exists(desktop_path):
+            file_chooser.setCurrentDirectory(File(desktop_path))
+        else:
+            file_chooser.setCurrentDirectory(File(os.path.expanduser("~")))
+        
+        result = file_chooser.showSaveDialog(None)
+        if result == JFileChooser.APPROVE_OPTION:
+            selected_file = file_chooser.getSelectedFile()
+            export_path = selected_file.getAbsolutePath()
+            
+            # Ensure proper extension
+            if self.format_type == "json" and not export_path.endswith('.json'):
+                export_path += '.json'
+            elif self.format_type == "frida" and not export_path.endswith('.js'):
+                export_path += '.js'
+            
+            try:
+                # Temporarily set the export path
+                original_path = self.extractor.export_path
+                self.extractor.export_path = export_path
+                
+                if self.format_type == "json":
+                    self.extractor.exportJSON(self.patterns)
+                    print("Exported JSON to: {}".format(export_path))
+                    JOptionPane.showMessageDialog(None, 
+                        "Successfully exported {} patterns to:\n{}".format(len(self.patterns), export_path),
+                        "Export Complete", JOptionPane.INFORMATION_MESSAGE)
+                elif self.format_type == "frida":
+                    self.extractor.exportFridaScript(self.patterns)
+                    # For Frida, also show JSON location
+                    json_path = export_path.replace('.js', '.json')
+                    print("Exported Frida script to: {}".format(export_path))
+                    print("Exported JSON data to: {}".format(json_path))
+                    JOptionPane.showMessageDialog(None, 
+                        "Successfully exported {} patterns to:\nFrida Script: {}\nJSON Data: {}".format(
+                            len(self.patterns), export_path, json_path),
+                        "Export Complete", JOptionPane.INFORMATION_MESSAGE)
+                
+                # Restore original path
+                self.extractor.export_path = original_path
+                
+            except Exception as e:
+                print("Export error: {}".format(str(e)))
+                JOptionPane.showMessageDialog(None, 
+                    "Export failed: {}".format(str(e)),
+                    "Export Error", JOptionPane.ERROR_MESSAGE)
 
 # Create and run the script
 extractor = PatternExtractor()
