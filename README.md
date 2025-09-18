@@ -180,3 +180,11 @@ Exported JSON to: /path/to/export/file.json
 - Use specific patterns to reduce false positives
 - Monitor hooking performance in production
 
+## Integration
+### Using with Hooky Pattern Loader
+The generated JSON files work directly with the [hooky_pattern_loader.py](https://github.com/Dado1513/Hooky/blob/master/hooky_pattern_loader.py):
+
+```bash
+# Use extracted patterns with Frida
+python hooky_pattern_loader.py -j extracted_patterns.json -t com.target.app
+```
