@@ -1,6 +1,9 @@
 # Ghidra Pattern Extractor Plugin
 # Extract hex patterns from selected functions for Frida hooking
 # Place in ghidra_scripts directory
+#@menupath Tools.GhidraPatternExtractotr
+#@toolbar
+
 
 import json
 import os
