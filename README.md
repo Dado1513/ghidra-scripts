@@ -36,7 +36,7 @@ A comprehensive Ghidra plugin that extracts binary patterns from selected functi
 - Java 11+ (included with Ghidra)
 
 ### Setup
-1. Download the `PatternExtractor.py` script
+1. Download the `ghidra_pattern_extractor.py` script
 2. Place in your Ghidra scripts directory:
    ```
    <GHIDRA_INSTALL>/Ghidra/Features/Python/ghidra_scripts/
