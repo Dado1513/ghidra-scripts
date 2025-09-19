@@ -1,41 +1,43 @@
-# Ghidra Pattern Extractor Plugin
+# Personal Ghidra-Scripts
+
+## Ghidra Pattern Extractor Plugin
 
 **Extract hex patterns from Ghidra functions for Frida dynamic analysis and penetration testing**
 
 A comprehensive Ghidra plugin that extracts binary patterns from selected functions and exports them in formats ready for use with Frida hooking frameworks. Designed specifically for security researchers, penetration testers, and reverse engineers working on mobile app security assessments.
 
-## Features
+### Features
 
-### 🎯 **Smart Pattern Extraction**
+#### 🎯 **Smart Pattern Extraction**
 - Extract hex patterns from any selected functions in Ghidra
 - Configurable byte extraction length (default: 20 bytes)
 - Smart wildcard generation for addresses and immediate values
 - Cross-reference analysis and symbol information
 
-### 🖥️ **Interactive GUI Interface**
+#### 🖥️ **Interactive GUI Interface**
 - Tabbed results viewer with individual pattern analysis
 - Real-time clipboard copy functionality
 - Multiple export formats (JSON, Frida Script)
 - File browser integration for export location selection
 
-### 📋 **Multiple Copy Options**
+#### 📋 **Multiple Copy Options**
 - **Copy Pattern**: Hex pattern with spaces (`a1 18 00 f0 21 ec 45 f9`)
 - **Copy Raw**: Pattern without spaces (`a11800f021ec45f9`)
 - **Copy Frida Code**: Ready-to-use Frida hook code
 - **Copy All Details**: Complete pattern information with metadata
 
-### 📤 **Export Formats**
+#### 📤 **Export Formats**
 - **JSON**: Simple pattern data compatible with automation tools
 - **Frida Script**: Complete JavaScript file with PatternHooker integration
 - **Quick Export**: One-click export to configured default paths
 
-## Installation
+### Installation
 
-### Requirements
+#### Requirements
 - Ghidra 10.0+ (tested with 10.1+)
 - Java 11+ (included with Ghidra)
 
-### Setup
+#### Setup
 1. Download the `ghidra_pattern_extractor.py` script
 2. Place in your Ghidra scripts directory:
    ```
@@ -45,9 +47,9 @@ A comprehensive Ghidra plugin that extracts binary patterns from selected functi
 3. Refresh the Script Manager in Ghidra
 4. The plugin will appear under the "User" category
 
-## Usage
+### Usage
 
-### Basic Workflow
+#### Basic Workflow
 
 1. **Open your target binary in Ghidra**
 2. **Navigate to functions of interest** (authentication, crypto, etc.)
@@ -58,7 +60,7 @@ A comprehensive Ghidra plugin that extracts binary patterns from selected functi
 5. **Configure extraction options** in the dialog
 6. **View and copy results** from the interactive interface
 
-### Configuration Options
+#### Configuration Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -67,7 +69,7 @@ A comprehensive Ghidra plugin that extracts binary patterns from selected functi
 | **Output format** | Export format preference | frida |
 | **Export path** | Default file location for exports | ~/frida_patterns.json |
 
-### Smart Wildcards Feature
+#### Smart Wildcards Feature
 
 The plugin automatically analyzes instructions to identify:
 - **Memory addresses** that vary between runs
@@ -81,9 +83,9 @@ Original:  a1 18 00 f0 21 ec 45 f9 70 0d 00 b0 10 5a 41 f9
 Smart:     a1 18 00 f0 ?? ?? ?? ?? 70 0d 00 b0 ?? ?? ?? ??
 ```
 
-## Penetration Testing Workflow
+### Penetration Testing Workflow
 
-### 1. **Target Analysis Phase**
+#### 1. **Target Analysis Phase**
 ```ghidra
 // In Ghidra, identify critical functions:
 - Authentication methods
@@ -92,47 +94,47 @@ Smart:     a1 18 00 f0 ?? ?? ?? ?? 70 0d 00 b0 ?? ?? ?? ??
 - License validation
 ```
 
-### 2. **Pattern Extraction**
+#### 2. **Pattern Extraction**
 - Select critical functions
 - Run Pattern Extractor with smart wildcards enabled
 - Review patterns in the interactive dialog
 - Copy specific patterns or export all as JSON
 
-### 3. **Dynamic Analysis**
+#### 3. **Dynamic Analysis**
 ```bash
 # Load patterns into Frida for runtime analysis
 ...
 ```
 
-### 4. **Results Analysis**
+#### 4. **Results Analysis**
 - Monitor hooked functions during app execution
 - Analyze arguments and return values
 - Identify security bypasses and vulnerabilities
 
-## Advanced Features
+### Advanced Features
 
-### Cross-Reference Analysis
+#### Cross-Reference Analysis
 Each extracted pattern includes:
 - **Caller Information**: Functions that call the target
 - **Call Sites**: Specific addresses of function calls
 - **Reference Count**: Total number of references
 
-### Symbol Metadata
+#### Symbol Metadata
 Pattern data includes comprehensive symbol information:
 - Primary function name and aliases
 - Namespace information
 - External/internal classification
 - Mangled vs demangled names
 
-### Batch Processing
+#### Batch Processing
 Select multiple functions to extract patterns in batch:
 - Process entire modules or namespaces
 - Filter by function characteristics
 - Export comprehensive pattern libraries
 
-## Troubleshooting
+### Troubleshooting
 
-### Common Issues
+#### Common Issues
 
 **No patterns extracted:**
 - Ensure functions are properly selected before running the script
@@ -149,7 +151,7 @@ Select multiple functions to extract patterns in batch:
 - Ensure adequate disk space for large exports
 - Check file path length limitations on Windows
 
-### Debug Information
+#### Debug Information
 
 Enable verbose output by checking the Ghidra console:
 ```
@@ -158,19 +160,19 @@ Copied to clipboard: pattern length and content preview
 Exported JSON to: /path/to/export/file.json
 ```
 
-## Tips for Effective Pattern Creation
+### Tips for Effective Pattern Creation
 
-### 1. **Function Selection Strategy**
+#### 1. **Function Selection Strategy**
 - Target security-critical functions first
 - Focus on unique implementation details
 - Avoid overly generic utility functions
 
-### 2. **Pattern Length Optimization**
+#### 2. **Pattern Length Optimization**
 - Start with 16-32 bytes for most functions
 - Use shorter patterns (8-16 bytes) for generic hooks
 - Extend to 64+ bytes for highly specific targets
 
-### 3. **Wildcard Usage**
+#### 3. **Wildcard Usage**
 - Enable smart wildcards for cross-version compatibility
 - Manually review generated patterns for accuracy
 - Test patterns against different app versions
@@ -180,7 +182,7 @@ Exported JSON to: /path/to/export/file.json
 - Use specific patterns to reduce false positives
 - Monitor hooking performance in production
 
-## Integration
+### Integration
 ### Using with Hooky Pattern Loader
 The generated JSON files work directly with the [hooky_pattern_loader.py](https://github.com/Dado1513/Hooky/blob/master/hooky_pattern_loader.py):
 
