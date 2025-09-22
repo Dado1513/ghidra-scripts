@@ -184,9 +184,11 @@ Exported JSON to: /path/to/export/file.json
 
 ### Integration
 ### Using with Hooky Pattern Loader
-The generated JSON files work directly with the [hooky_pattern_loader.py](https://github.com/Dado1513/Hooky/blob/master/hooky_pattern_loader.py):
+The generated JSON files work directly with the [hooky_pattern_loader.py](https://github.com/Dado1513/Hooky/blob/master/hooky_pattern_loader.py) and [modular-frida-hooking-patter.js](./frida-scripts/modular-frida-hooking-pattern.js):
 
 ```bash
 # Use extracted patterns with Frida
 python hooky_pattern_loader.py -j extracted_patterns.json -t com.target.app
+python hooky_pattern_loader.py -p "name:f4 4f be a9 fd 7b 01 a9 fd 43 00 91 f3 03 00 aa dc c2 1d 94" -t com.target.app
+frida -Uf com.target.app -l modular-frida-hooking-pattern.js
 ```
